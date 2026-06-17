@@ -88,26 +88,39 @@ inputs. Result:
 ## Setup (one-time, on the CC host)
 
 ```bash
-# 1. Build the base image from an once-project checkout (carries the MT3 stack
-#    + weights). Re-run only when the algorithm or weights change.
-git clone https://github.com/IERoboticsAILab/once-project ~/once-project   # gpu-accelerated branch
+# 1. Get the base-image source (carries the MT3 stack + weights). once-project
+#    is private, so on a host without git credentials for it, transfer the tree
+#    out of band instead of cloning, e.g. from a machine that has it:
+#      rsync -a <once-project>/1000_tasks/learning_thousand_tasks/ \
+#            failsafe@<cc-host>:~/once-project/1000_tasks/learning_thousand_tasks/
+#    (or `git clone https://github.com/IERoboticsAILab/once-project ~/once-project`
+#     on the gpu-accelerated branch if you do have access.)
 cd ~/once-project/1000_tasks/learning_thousand_tasks
-docker build -t thousand-tasks .
+docker build -t thousand-tasks .          # heavy; re-run only on algo/weights change
 
-# 2. Pre-seed the existing demos into the persistent store (already in the
-#    correct flat layout, with geometry_encoding.npy cached).
-sudo mkdir -p /var/lib/lucid-mt3/demonstrations
-sudo cp -a assets/demonstrations/. /var/lib/lucid-mt3/demonstrations/
-
-# 3. Provision MQTT credentials for the server identity.
+# 2. Provision MQTT credentials for the server identity (default `agent` role).
 cd ~/lucid-central-command
 docker compose exec auth python manage.py add-agent mt3
 
-# 4. Configure + start.
+# 3. Configure. The demo store host path defaults to /var/lib/lucid-mt3/
+#    demonstrations; on a host without passwordless sudo, point it at a
+#    home-owned dir via MT3_DEMOS_HOST in .env.
 cd lucid-mt3
-cp .env.example .env          # paste the password from step 3 into MT3_MQTT_PASSWORD
+cp .env.example .env          # set MT3_MQTT_PASSWORD (from step 2); optionally MT3_DEMOS_HOST
+
+# 4. Pre-seed the existing demos into that store (already in the correct flat
+#    layout, with geometry_encoding.npy cached).
+DEMOS="${MT3_DEMOS_HOST:-/var/lib/lucid-mt3/demonstrations}"
+mkdir -p "$DEMOS"            # prefix with sudo if it's a root-owned path
+cp -a ~/once-project/1000_tasks/learning_thousand_tasks/assets/demonstrations/. "$DEMOS"/
+
+# 5. Build + start.
 docker compose up -d --build
 ```
+
+Or just run `./deploy-cc.sh` from the `lucid-mt3` dir, which does steps 1, 4, 5
+and verifies (it reads `MT3_DEMOS_HOST` and skips cloning if the source is
+already present).
 
 Verify:
 ```bash

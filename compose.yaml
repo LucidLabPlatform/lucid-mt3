@@ -8,13 +8,16 @@ name: lucid-mt3
 # MQTT_HOST=localhost works regardless of which Docker network the broker uses.
 #
 # Persistent demonstration storage:
-#   The host directory /var/lib/lucid-mt3/demonstrations is bind-mounted at
-#   /workspace/assets/demonstrations and holds every demo (pre-seeded ones plus
-#   anything uploaded via cmd/upload_demo). It shadows the seed demos baked into
-#   the base image and survives container rebuilds. Pre-seed it at deploy time:
-#     sudo mkdir -p /var/lib/lucid-mt3/demonstrations
-#     sudo cp -a <once-project>/1000_tasks/learning_thousand_tasks/assets/demonstrations/. \
-#         /var/lib/lucid-mt3/demonstrations/
+#   A host directory is bind-mounted at /workspace/assets/demonstrations and
+#   holds every demo (pre-seeded ones plus anything uploaded via
+#   cmd/upload_demo). It shadows the seed demos baked into the base image and
+#   survives container rebuilds. The host path defaults to
+#   /var/lib/lucid-mt3/demonstrations but can be overridden with MT3_DEMOS_HOST
+#   in .env (e.g. a home-owned dir on hosts without passwordless sudo). Pre-seed
+#   it at deploy time:
+#     mkdir -p "$MT3_DEMOS_HOST"
+#     cp -a <once-project>/1000_tasks/learning_thousand_tasks/assets/demonstrations/. \
+#         "$MT3_DEMOS_HOST"/
 
 services:
   lucid-mt3:
@@ -36,7 +39,7 @@ services:
       - path: .env
         required: false
     volumes:
-      - /var/lib/lucid-mt3/demonstrations:/workspace/assets/demonstrations
+      - ${MT3_DEMOS_HOST:-/var/lib/lucid-mt3/demonstrations}:/workspace/assets/demonstrations
     deploy:
       resources:
         reservations:

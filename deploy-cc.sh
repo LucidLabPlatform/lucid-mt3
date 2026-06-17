@@ -14,20 +14,28 @@ ONCE_REPO="${ONCE_REPO:-https://github.com/IERoboticsAILab/once-project.git}"
 ONCE_REF="${ONCE_REF:-gpu-accelerated}"
 ONCE_DIR="${ONCE_DIR:-$HOME/once-project}"
 LEARN_DIR="$ONCE_DIR/1000_tasks/learning_thousand_tasks"
-DEMOS_DST="/var/lib/lucid-mt3/demonstrations"
+# Host dir for the persistent demo store (override in .env for sudo-less hosts).
+DEMOS_DST="${MT3_DEMOS_HOST:-/var/lib/lucid-mt3/demonstrations}"
+# Use sudo only when the target parent isn't writable by us.
+SUDO=""; [ -w "$(dirname "$DEMOS_DST")" ] || SUDO="sudo"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UMBRELLA="$(cd "$HERE/.." && pwd)"
 
 log() { printf '\n=== %s ===\n' "$*"; }
 
-# 1. Get / refresh the once-project checkout (source for the base image + demos).
-log "1/6 once-project checkout ($ONCE_REF)"
-if [ -d "$ONCE_DIR/.git" ]; then
+# 1. Ensure the once-project source is present (base image + seed demos).
+# once-project is private, so a host without git credentials for it must have
+# the learning_thousand_tasks tree transferred here out of band (scp/rsync).
+log "1/6 once-project source ($LEARN_DIR)"
+if [ -d "$LEARN_DIR/thousand_tasks" ]; then
+  echo "source present - using it as-is"
+elif [ -d "$ONCE_DIR/.git" ]; then
   git -C "$ONCE_DIR" fetch --depth 1 origin "$ONCE_REF"
   git -C "$ONCE_DIR" checkout -q "$ONCE_REF"
   git -C "$ONCE_DIR" reset --hard -q "origin/$ONCE_REF"
 else
-  git clone --depth 1 --branch "$ONCE_REF" "$ONCE_REPO" "$ONCE_DIR"
+  git clone --depth 1 --branch "$ONCE_REF" "$ONCE_REPO" "$ONCE_DIR" \
+    || { echo "ERROR: cannot clone $ONCE_REPO (private?). Transfer $LEARN_DIR here and re-run."; exit 1; }
 fi
 
 # 2. Build the thousand-tasks base image (heavy; cached after first run).
@@ -36,9 +44,9 @@ docker build -t thousand-tasks "$LEARN_DIR"
 
 # 3. Pre-seed demonstrations into the persistent host store (once).
 log "3/6 pre-seed demonstrations -> $DEMOS_DST"
-sudo mkdir -p "$DEMOS_DST"
+$SUDO mkdir -p "$DEMOS_DST"
 if [ -z "$(ls -A "$DEMOS_DST" 2>/dev/null)" ]; then
-  sudo cp -a "$LEARN_DIR/assets/demonstrations/." "$DEMOS_DST/"
+  $SUDO cp -a "$LEARN_DIR/assets/demonstrations/." "$DEMOS_DST/"
   echo "seeded $(ls "$DEMOS_DST" | wc -l) demos"
 else
   echo "store already populated ($(ls "$DEMOS_DST" | wc -l) entries) - leaving as-is"
