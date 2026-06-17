@@ -24,11 +24,15 @@ Inputs and outputs are shipped as raw file bytes, so what the server feeds to
 `deploy_mt3.py` is byte-identical to what this machine wrote on disk.
 
 Environment variables used by `from_env`:
-    MQTT_HOST        (required)
-    MQTT_PORT        (default 1883)
-    MQTT_USERNAME    (optional)
-    MQTT_PASSWORD    (optional)
-    LUCID_MT3_TOPIC  (default lucid/agents/mt3/components/mt3)
+    MQTT_HOST           (required)
+    MQTT_PORT           (default 1883)
+    MT3_MQTT_USERNAME   (mt3 client identity; falls back to MQTT_USERNAME)
+    MT3_MQTT_PASSWORD   (falls back to MQTT_PASSWORD)
+    LUCID_MT3_TOPIC     (default lucid/agents/mt3/components/mt3)
+
+The mt3 client needs an `mt3_client`-role MQTT user (provisioned on Central
+Command). It is distinct from the langsam client identity, so it gets its own
+MT3_MQTT_* vars; set those when langsam and mt3 use different users.
 
 Python 3.8 compatible. Requires: paho-mqtt, numpy.
 """
@@ -130,8 +134,8 @@ class Mt3Client:
         kwargs = dict(
             host=os.environ["MQTT_HOST"],
             port=int(os.environ.get("MQTT_PORT", "1883")),
-            username=os.environ.get("MQTT_USERNAME"),
-            password=os.environ.get("MQTT_PASSWORD"),
+            username=os.environ.get("MT3_MQTT_USERNAME") or os.environ.get("MQTT_USERNAME"),
+            password=os.environ.get("MT3_MQTT_PASSWORD") or os.environ.get("MQTT_PASSWORD"),
             topic_root=os.environ.get(
                 "LUCID_MT3_TOPIC", "lucid/agents/mt3/components/mt3"
             ),
