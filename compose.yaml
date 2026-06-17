@@ -1,0 +1,46 @@
+name: lucid-mt3
+
+# Standalone GPU MT3 service. Runs independently of the main CC stack.
+# Start with:  docker compose up -d --build
+# Stop with:   docker compose down
+#
+# Connects to the EMQX broker on the host via network_mode:host, so
+# MQTT_HOST=localhost works regardless of which Docker network the broker uses.
+#
+# Persistent demonstration storage:
+#   The host directory /var/lib/lucid-mt3/demonstrations is bind-mounted at
+#   /workspace/assets/demonstrations and holds every demo (pre-seeded ones plus
+#   anything uploaded via cmd/upload_demo). It shadows the seed demos baked into
+#   the base image and survives container rebuilds. Pre-seed it at deploy time:
+#     sudo mkdir -p /var/lib/lucid-mt3/demonstrations
+#     sudo cp -a <once-project>/1000_tasks/learning_thousand_tasks/assets/demonstrations/. \
+#         /var/lib/lucid-mt3/demonstrations/
+
+services:
+  lucid-mt3:
+    container_name: lucid-mt3
+    build:
+      context: .
+      args:
+        BASE_IMAGE: ${MT3_BASE_IMAGE:-thousand-tasks}
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      MQTT_HOST: ${MQTT_HOST:-localhost}
+      MQTT_PORT: ${MQTT_PORT:-1883}
+      MQTT_USERNAME: ${MT3_MQTT_USERNAME}
+      MQTT_PASSWORD: ${MT3_MQTT_PASSWORD}
+      LUCID_MT3_AGENT_ID: mt3
+      LUCID_LOG_LEVEL: ${LUCID_LOG_LEVEL:-INFO}
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - /var/lib/lucid-mt3/demonstrations:/workspace/assets/demonstrations
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

@@ -1,0 +1,8 @@
+# Runtime requirement for the lucid-mt3 server.
+#
+# The MT3 stack (torch, torch-geometric, open3d, CLIP, the thousand_tasks
+# package + weights) comes from the `thousand-tasks` base image -- see the
+# Dockerfile. The server itself shells out to deployment/deploy_mt3.py and only
+# needs an MQTT client on top of that base.
+
+paho-mqtt>=2.0,<3
