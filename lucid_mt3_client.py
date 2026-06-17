@@ -39,6 +39,7 @@ Python 3.8 compatible. Requires: paho-mqtt, numpy.
 
 import os
 import io
+import gzip
 import json
 import time
 import uuid
@@ -84,12 +85,15 @@ def _make_client(client_id):
 
 
 def _file_b64(path):
+    # gzip in transit: keeps payloads under the broker packet cap (the raw
+    # boolean segmap + trajectory arrays are large but compress well). PNGs are
+    # already compressed, so they barely change; npy arrays shrink a lot.
     with open(path, "rb") as fh:
-        return base64.b64encode(fh.read()).decode("ascii")
+        return base64.b64encode(gzip.compress(fh.read())).decode("ascii")
 
 
 def _b64_npy(payload):
-    return np.load(io.BytesIO(base64.b64decode(payload)), allow_pickle=False)
+    return np.load(io.BytesIO(gzip.decompress(base64.b64decode(payload))), allow_pickle=False)
 
 
 class Mt3Error(RuntimeError):

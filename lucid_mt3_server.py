@@ -37,6 +37,7 @@ with no change to the Kinova client.
 
 import os
 import re
+import gzip
 import json
 import base64
 import shutil
@@ -109,13 +110,14 @@ def _make_client(client_id):
 
 
 def _b64_to_file(b64, path):
+    # Inputs arrive gzip-compressed (see the client) to fit the broker cap.
     with open(path, "wb") as fh:
-        fh.write(base64.b64decode(b64))
+        fh.write(gzip.decompress(base64.b64decode(b64)))
 
 
 def _file_to_b64(path):
     with open(path, "rb") as fh:
-        return base64.b64encode(fh.read()).decode("ascii")
+        return base64.b64encode(gzip.compress(fh.read())).decode("ascii")
 
 
 class Mt3Server:
